@@ -1,0 +1,25 @@
+# --- Backend / API -------------------------------------------------------
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.34,<1.0
+python-multipart>=0.0.20
+pydantic>=2.10,<3.0
+requests>=2.32
+
+# --- Frontend Streamlit --------------------------------------------------
+streamlit>=1.44,<2.0
+pandas>=2.2
+
+# --- Base de datos MySQL -------------------------------------------------
+SQLAlchemy>=2.0.36,<3.0
+PyMySQL>=1.1.1          # driver 100% python: no requiere compilador en Windows
+cryptography>=44.0      # necesario para caching_sha2_password de MySQL 8
+
+# --- Visión por computador ----------------------------------------------
+numpy>=1.26
+opencv-python>=4.10
+pillow>=10.4
+ultralytics>=8.3        # YOLOv8 (personas)
+insightface>=2.0        # embeddings faciales ArcFace (ONNX Runtime)
+onnxruntime>=1.19
+
+# --- Utilidades ----------------------------------------------------------

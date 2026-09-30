@@ -1,0 +1,24 @@
+# Entorno virtual
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Configuración local (puede contener contraseñas o tokens)
+.env
+
+# Respaldos generados por respaldo.bat
+backups/*.sql
+
+# Pesos de modelos grandes
+modelos/*.pt
+modelos/*.onnx
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
