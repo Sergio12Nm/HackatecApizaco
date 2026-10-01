@@ -9,11 +9,12 @@ import numpy as np
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Embedding, LogRegistro, Persona
-from ..schemas import PersonaOut
+from ..schemas import PersonaOut, PersonaUpdate
 from ..utils import bytes_a_imagen, imagen_a_jpeg
 from ..vision import face as face_mod
 
@@ -189,6 +190,42 @@ def cambiar_activo(pid: int, activo: bool, db: Session = Depends(get_db)):
     db.commit()
     face_mod.invalidar_cache()
     return {"ok": True, "id": pid, "activo": activo}
+
+
+@router.put("/{pid}", response_model=dict)
+def actualizar_persona(pid: int, datos: PersonaUpdate, db: Session = Depends(get_db)):
+    """Actualiza los datos personales sin modificar embeddings ni historial."""
+    persona = db.get(Persona, pid)
+    if not persona:
+        raise HTTPException(404, "Persona no encontrada")
+
+    nombre = datos.nombre.strip()
+    if len(nombre) < 2:
+        raise HTTPException(400, "El nombre es demasiado corto")
+
+    documento = (datos.documento or "").strip() or None
+    if documento:
+        existe = db.scalar(
+            select(Persona).where(
+                Persona.documento == documento,
+                Persona.id != pid,
+            )
+        )
+        if existe:
+            raise HTTPException(400, f"El documento {documento} ya está registrado")
+
+    persona.nombre = nombre
+    persona.documento = documento
+    persona.cargo = (datos.cargo or "").strip() or None
+    persona.email = (datos.email or "").strip() or None
+    persona.telefono = (datos.telefono or "").strip() or None
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(400, "No se pudieron guardar los datos de la persona") from exc
+
+    return {"ok": True, "id": pid, "mensaje": "Datos de la persona actualizados"}
 
 
 @router.delete("/{pid}", response_model=dict)

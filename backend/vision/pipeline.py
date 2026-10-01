@@ -94,6 +94,7 @@ class Monitor:
             self._thread.join(timeout=3)
         with self._lock:
             self._conectado = False
+            self._alarma = False
             self._estado = "detenido"
             self._detecciones = []
             self._fps = 0.0
@@ -124,6 +125,13 @@ class Monitor:
             return self._alarma
 
     def estado(self) -> dict:
+        try:
+            embeddings = face_mod.numero_embeddings()
+        except Exception as exc:
+            # El estado del motor debe seguir disponible para el panel aunque
+            # MySQL esté caído o todavía no se haya creado la base de datos.
+            log.warning("No se pudo contar embeddings para el estado: %s", exc)
+            embeddings = 0
         with self._lock:
             return {
                 "activo": self.vivo,
@@ -134,7 +142,7 @@ class Monitor:
                 "fotograma_ts": self._frame_ts or None,
                 "detecciones": list(self._detecciones),
                 "umbral": config.UMBRAL_FACIAL,
-                "embeddings": face_mod.numero_embeddings(),
+                "embeddings": embeddings,
                 "backend_camara": self._backend_en_uso,
             }
 
@@ -328,6 +336,7 @@ class Monitor:
                 self._set_estado(f"Sin señal de cámara ({config.CAMARA_URL})")
                 with self._lock:
                     self._conectado = False
+                    self._alarma = False
                     self._detecciones = []
                 self._fallos_apertura += 1
                 self._rotar_backend_si_toca()
@@ -343,6 +352,7 @@ class Monitor:
                 self._set_estado("cámara abierta pero sin imagen, reintentando...")
                 with self._lock:
                     self._conectado = False
+                    self._alarma = False
                     self._detecciones = []
                 self._liberar(cap)
                 self._fallos_apertura += 1
@@ -380,6 +390,7 @@ class Monitor:
                 ok, frame = self._leer(cap)
                 if not ok or frame is None:
                     self._set_estado("cámara desconectada, reintentando...")
+                    self._set_alarma(False)
                     break
                 if not self._es_nuevo(frame) and self._repetidos >= config.CAMARA_CONGELADA_MAX:
                     log.warning(
@@ -393,6 +404,7 @@ class Monitor:
             self._liberar(cap)
             with self._lock:
                 self._conectado = False
+                self._alarma = False
                 self._detecciones = []
             # respiro entre reconexiones: reabrir en bucle deja el dispositivo
             # bloqueado y la cámara no vuelve nunca

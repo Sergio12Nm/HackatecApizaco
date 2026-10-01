@@ -66,23 +66,39 @@ with col_foto:
         st.caption("Sin foto almacenada.")
 
 with col_datos:
+    st.subheader("Datos del usuario")
+    with st.form(f"editar_persona_{persona_id}"):
+        nuevo_nombre = st.text_input("Nombre completo", value=persona["nombre"])
+        nuevo_documento = st.text_input("Documento / ID", value=persona.get("documento") or "")
+        nuevo_cargo = st.text_input("Cargo", value=persona.get("cargo") or "")
+        nuevo_email = st.text_input("Email", value=persona.get("email") or "")
+        nuevo_telefono = st.text_input("Teléfono", value=persona.get("telefono") or "")
+        guardar_datos = st.form_submit_button("Guardar cambios", type="primary")
+
+    if guardar_datos:
+        if not nuevo_nombre.strip():
+            st.error("El nombre es obligatorio.")
+        else:
+            try:
+                resultado = cliente.actualizar_persona(
+                    persona_id,
+                    nuevo_nombre.strip(),
+                    nuevo_documento.strip(),
+                    nuevo_cargo.strip(),
+                    nuevo_email.strip(),
+                    nuevo_telefono.strip(),
+                )
+                st.success(resultado["mensaje"])
+                st.rerun()
+            except cliente.ErrorApi as exc:
+                st.error(str(exc))
+
     st.subheader("Acciones")
     st.markdown(f"**Estado actual:** {'Activo' if persona['activo'] else 'Inactivo'}")
 
-    c1, c2 = st.columns(2)
-    if c1.button("Alternar activo/inactivo", width="stretch"):
+    if st.button("Alternar activo/inactivo", width="stretch"):
         try:
             cliente.cambiar_activo(persona_id, not persona["activo"])
-            st.rerun()
-        except cliente.ErrorApi as exc:
-            st.error(str(exc))
-
-    confirmar = c2.checkbox("Confirmar borrado")
-    if c2.button("🗑 Eliminar persona", width="stretch", disabled=not confirmar,
-                 type="secondary"):
-        try:
-            cliente.eliminar_persona(persona_id)
-            st.success("Persona eliminada (y sus embeddings, por cascada).")
             st.rerun()
         except cliente.ErrorApi as exc:
             st.error(str(exc))
@@ -91,3 +107,26 @@ with col_datos:
         "Desactivar mantiene el historial pero la persona deja de ser reconocida. "
         "Al activar o desactivar se recarga la caché de embeddings automáticamente."
     )
+
+st.divider()
+with st.expander("🗑 Borrar usuario registrado", expanded=False):
+    st.warning(
+        f"Se eliminará permanentemente a **{persona['nombre']}**, sus embeddings "
+        "y sus fotos registradas. El historial de eventos se conservará."
+    )
+    confirmar = st.checkbox(
+        "Confirmo que quiero borrar este usuario",
+        key=f"confirmar_borrado_{persona_id}",
+    )
+    if st.button(
+        "Borrar usuario definitivamente",
+        type="primary",
+        disabled=not confirmar,
+        key=f"borrar_persona_{persona_id}",
+    ):
+        try:
+            cliente.eliminar_persona(persona_id)
+            st.success("Usuario eliminado correctamente.")
+            st.rerun()
+        except cliente.ErrorApi as exc:
+            st.error(str(exc))

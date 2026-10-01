@@ -18,6 +18,14 @@ class PersonaOut(BaseModel):
     num_embeddings: int = 0
 
 
+class PersonaUpdate(BaseModel):
+    nombre: str = Field(min_length=2, max_length=150)
+    documento: str | None = Field(default=None, max_length=50)
+    cargo: str | None = Field(default=None, max_length=100)
+    email: str | None = Field(default=None, max_length=150)
+    telefono: str | None = Field(default=None, max_length=50)
+
+
 class ZonaOut(BaseModel):
     id: int
     nombre: str

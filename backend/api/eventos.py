@@ -62,7 +62,7 @@ def alarma():
 def monitor_accion(accion: str):
     """acciones: start | stop | reiniciar-cache"""
     accion = accion.lower()
-    if accion in {"start", "iniciar", "start"}:
+    if accion in {"start", "iniciar"}:
         monitor.iniciar()
         return {"ok": True, "accion": "iniciado"}
     if accion in {"stop", "detener"}:

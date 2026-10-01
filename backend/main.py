@@ -105,6 +105,7 @@ def raiz():
             "endpoints": {
                 "registrar persona": "POST /api/personas",
                 "agregar fotos": "POST /api/personas/{id}/embeddings",
+                "actualizar persona": "PUT /api/personas/{id}",
                 "listar personas": "GET /api/personas",
                 "foto persona": "GET /api/personas/{id}/foto",
                 "zonas": "GET|POST /api/zonas",

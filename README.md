@@ -233,6 +233,7 @@ DELETE FROM eventos WHERE timestamp < NOW() - INTERVAL 90 DAY;
 |---|---|---|
 | `POST` | `/api/personas` | registra persona + embeddings (multipart `fotos[]`) |
 | `POST` | `/api/personas/{id}/embeddings` | registro en caliente: más fotos |
+| `PUT` | `/api/personas/{id}` | actualiza los datos de una persona |
 | `GET` | `/api/personas` | lista el personal autorizado |
 | `PATCH` | `/api/personas/{id}/activo` | activa/desactiva sin borrar |
 | `DELETE` | `/api/personas/{id}` | elimina persona y embeddings |

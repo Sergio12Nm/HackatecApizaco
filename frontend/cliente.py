@@ -9,12 +9,37 @@ en un solo proceso.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 import requests
 import streamlit as st
 
-API_URL = os.environ.get("API_URL", "http://127.0.0.1:8000").rstrip("/")
+
+
+def _api_url_configurado() -> str:
+    """Lee API_URL del entorno o del .env compartido con el backend."""
+    valor = os.environ.get("API_URL")
+    if valor:
+        return valor.strip().strip('"').strip("'").rstrip("/")
+
+    archivo_env = Path(__file__).resolve().parent.parent / ".env"
+    try:
+        for linea in archivo_env.read_text(encoding="utf-8").splitlines():
+            linea = linea.strip()
+            if not linea or linea.startswith("#") or "=" not in linea:
+                continue
+            clave, valor = linea.split("=", 1)
+            if clave.strip() == "API_URL":
+                valor = valor.strip().strip('"').strip("'")
+                if valor:
+                    return valor.rstrip("/")
+    except OSError:
+        pass
+    return "http://127.0.0.1:8000"
+
+
+API_URL = _api_url_configurado()
 TIMEOUT = 20.0
 
 _session = requests.Session()
@@ -67,9 +92,19 @@ def get_bytes(ruta: str, params: dict | None = None) -> bytes | None:
     return r.content
 
 
-def post_json(ruta: str, datos: dict | None = None, timeout: float = TIMEOUT) -> Any:
+def post_json(
+    ruta: str,
+    datos: dict | None = None,
+    timeout: float = TIMEOUT,
+    params: dict | None = None,
+) -> Any:
     try:
-        r = _session.post(_url(ruta), json=datos or {}, timeout=timeout)
+        r = _session.post(
+            _url(ruta),
+            json=datos or {},
+            params=params,
+            timeout=timeout,
+        )
     except requests.RequestException as exc:
         raise ErrorApi(f"No se pudo conectar con el backend: {exc}") from exc
     return _manejar(r)
@@ -171,6 +206,26 @@ def cambiar_activo(persona_id: int, activo: bool) -> dict:
     return patch(f"/api/personas/{persona_id}/activo", {"activo": str(activo).lower()})
 
 
+def actualizar_persona(
+    persona_id: int,
+    nombre: str,
+    documento: str,
+    cargo: str,
+    email: str,
+    telefono: str,
+) -> dict:
+    return put(
+        f"/api/personas/{persona_id}",
+        {
+            "nombre": nombre,
+            "documento": documento or None,
+            "cargo": cargo or None,
+            "email": email or None,
+            "telefono": telefono or None,
+        },
+    )
+
+
 def eliminar_persona(persona_id: int) -> dict:
     return delete(f"/api/personas/{persona_id}")
 
@@ -211,7 +266,9 @@ def borrar_evento(eid: int) -> dict:
 
 
 def purgar_eventos(dias: int = 90) -> dict:
-    return post_json("/api/eventos/purgar", {"dias": dias})
+    # La API recibe `dias` como query parameter. Mantenerlo fuera del JSON
+    # evita que FastAPI aplique silenciosamente el valor por defecto (90).
+    return post_json("/api/eventos/purgar", params={"dias": dias})
 
 
 def probar_fuente(fuente: str) -> dict:

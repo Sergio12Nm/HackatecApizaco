@@ -2,12 +2,18 @@
 
 Sistema de detección de personal no autorizado en zonas restringidas usando cámaras de celular como reemplazo de cámaras/robots de seguridad en esta primera fase.
 
+> **Nota sobre esta guía:** el proyecto actual usa `frontend/app.py` con
+> Streamlit. Este archivo conserva partes del diseño del prototipo HTML para
+> referencia técnica; la instalación y el uso actual están documentados en
+> `README.md`. Las instrucciones de las secciones 9 y 10 no describen rutas
+> activas del proyecto.
+
 **Características principales:**
 - ✅ Detección de personas en tiempo real (YOLOv8)
 - ✅ Reconocimiento facial por **embeddings** (sin reentrenar modelo)
 - ✅ Registro de personas nuevas en caliente (foto + datos)
 - ✅ Definición de zonas restringidas (polígonos)
-- ✅ Alarma sonora + aviso a seguridad (Telegram/WebSocket)
+- ✅ Alarma sonora + aviso a seguridad por Telegram
 - ✅ Registro histórico de accesos
 - ✅ **Base de datos MySQL** (datos + fotos + snapshots en `LONGBLOB`)
 
@@ -1126,15 +1132,14 @@ uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
 ### 12.4 Uso
 
-1. Abrir `http://localhost:8000/registro` → registrar personas autorizadas (1-5 fotos).
-2. Abrir `http://localhost:8000/` → panel en vivo.
-3. Definir zonas (vía `POST /api/zonas`):
+1. Abrir `http://localhost:8501` → panel Streamlit.
+2. Registrar personas desde **Registro de personal** (1-5 fotos).
+3. Definir zonas desde **Zonas restringidas** o mediante `POST /api/zonas`:
 
 ```bash
 curl -X POST http://localhost:8000/api/zonas \
-  -F "nombre=Entrada Principal" \
-  -F "camara_id=cam0" \
-  -F 'poligono=[[100,300],[500,300],[500,470],[100,470]]'
+  -H "Content-Type: application/json" \
+  -d '{"nombre":"Entrada Principal","camara_id":"cam0","poligono":[[100,300],[500,300],[500,470],[100,470]]}'
 ```
 
 4. Cuando alguien entra a la zona:
