@@ -9,6 +9,7 @@ from __future__ import annotations
 import io
 import logging
 import threading
+import time
 
 import requests
 
@@ -18,6 +19,8 @@ log = logging.getLogger(__name__)
 
 _bloqueo = threading.Lock()
 _ultimo_envio: float = 0.0
+_alerta_pendiente: tuple[str, bytes | None] | None = None
+_hilo_cola: threading.Thread | None = None
 
 
 def configurado() -> bool:
@@ -51,40 +54,84 @@ def _enviar(mensaje: str, snapshot: bytes | None) -> bool:
         return False
 
 
+def _procesar_cola(intervalo_s: float) -> None:
+    """Procesa alertas de una en una y conserva solo la más reciente."""
+    global _alerta_pendiente, _hilo_cola, _ultimo_envio
+
+    while True:
+        with _bloqueo:
+            if _alerta_pendiente is None:
+                _hilo_cola = None
+                return
+            mensaje, snapshot = _alerta_pendiente
+            _alerta_pendiente = None
+            espera = max(0.0, intervalo_s - (time.time() - _ultimo_envio))
+
+        if espera:
+            time.sleep(espera)
+
+        if not _enviar(mensaje, snapshot):
+            log.warning("La alerta de Telegram no pudo enviarse")
+        with _bloqueo:
+            _ultimo_envio = time.time()
+
+
 def enviar_alerta(
     snapshot: bytes | None = None,
     similitud: float = 0.0,
     zona: str | None = None,
     nota: str | None = None,
-    intervalo_min_s: float = 10.0,
+    mensaje: str | None = None,
+    intervalo_min_s: float | None = None,
 ) -> bool:
-    """Envía la foto del intruso a Telegram. Nunca bloquea más de 15 s."""
-    global _ultimo_envio
-    import time
+    """Encola una alerta sin bloquear el motor de visión.
 
-    texto = "🚨 Persona NO autorizada en zona restringida"
-    if zona:
-        texto += f"\nZona: {zona}"
-    texto += f"\nSimilitud: {similitud:.2f}"
-    if nota:
-        texto += f"\nNota: {nota}"
+    Solo se envía una alerta por intervalo. Si llegan varias durante ese
+    tiempo, se sustituye la pendiente por la más reciente para evitar una
+    cola de fotos obsoletas.
+    """
+    global _alerta_pendiente, _hilo_cola
+
+    texto = mensaje or "🚨 Persona NO autorizada en zona restringida"
+    if mensaje is None:
+        if zona:
+            texto += f"\nZona: {zona}"
+        texto += f"\nSimilitud: {similitud:.2f}"
+        if nota:
+            texto += f"\nNota: {nota}"
 
     if not configurado():
         log.warning("[ALERTA] %s", texto.replace("\n", " | "))
         return False
 
-    ahora = time.time()
+    intervalo_s = (
+        config.TELEGRAM_INTERVALO_S
+        if intervalo_min_s is None
+        else max(0.0, float(intervalo_min_s))
+    )
+
+    # Las alertas producidas por una detección pasan explícitamente intervalo
+    # cero: deben salir sin esperar a la cola de avisos generales.
+    if intervalo_s == 0.0:
+        threading.Thread(
+            target=_enviar,
+            args=(texto, snapshot),
+            name="telegram-alerta-inmediata",
+            daemon=True,
+        ).start()
+        return True
+
     with _bloqueo:
-        if ahora - _ultimo_envio < intervalo_min_s:
-            return False
-        _ultimo_envio = ahora
-
-    resultado: dict = {}
-
-    def _worker() -> None:
-        resultado["ok"] = _enviar(texto, snapshot)
-
-    threading.Thread(target=_worker, daemon=True).start()
+        _alerta_pendiente = (texto, snapshot)
+        if _hilo_cola is not None and _hilo_cola.is_alive():
+            return True
+        _hilo_cola = threading.Thread(
+            target=_procesar_cola,
+            args=(intervalo_s,),
+            name="telegram-alertas",
+            daemon=True,
+        )
+        _hilo_cola.start()
     return True
 
 

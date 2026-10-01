@@ -1,4 +1,4 @@
-# 🎥 Sistema de Videovigilancia con Visión Artificial — Fase 1
+# Sistema de Videovigilancia con Visión Artificial — Fase 1
 
 Detección de personal **no autorizado** en zonas restringidas usando cámaras de
 celular como reemplazo de cámaras de seguridad.
@@ -127,6 +127,7 @@ streamlit run frontend\app.py
 | `ALERMA_SONORA` | `1` | beep del sistema operativo |
 | `ALERTA_SIN_ROSTRO` | `1` | alerta si hay persona en zona sin rostro visible |
 | `TELEGRAM_TOKEN` / `TELEGRAM_CHAT` | vacíos | aviso opcional a seguridad |
+| `TELEGRAM_INTERVALO_S` | `30` | segundos mínimos entre alertas; conserva solo la más reciente pendiente |
 | `DB_USER` / `DB_PASS` | `vigilancia` / `vigilancia123` | credenciales MySQL |
 
 ### Preparar el celular (IP Webcam)
@@ -296,9 +297,3 @@ curl -X POST http://localhost:8000/api/zonas ^
 | Base de datos crece (`LONGBLOB`) | purga periódica de eventos antiguos |
 | Privacidad / datos biométricos | fotos y vectores son datos sensibles: aplica la normativa local, obtén consentimiento escrito y restringe el acceso |
 | Pérdida de conexión MySQL | `pool_pre_ping` + `pool_recycle` en `backend/db.py` |
-
----
-
-**Licencia:** uso interno / educativo.
-Los modelos preentrenados (YOLOv8, ArcFace) tienen sus propias licencias
-(uso no comercial en el caso de InsightFace).

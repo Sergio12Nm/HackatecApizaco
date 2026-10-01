@@ -63,6 +63,7 @@ class Monitor:
 
         self._ultimo_autorizado: dict[int, float] = {}
         self._ultima_alarma = 0.0
+        self._ultima_alerta_telegram = 0.0
         self._ultimo_error_rostro = 0.0
         self._ultimo_hash: int | None = None
         self._repetidos = 0
@@ -481,6 +482,7 @@ class Monitor:
         detecciones: list[dict] = []
         alarma = False
         eventos_nuevos: list[tuple] = []
+        alertas_telegram: list[str] = []
 
         for bbox in cajas:
             zona = None
@@ -514,7 +516,7 @@ class Monitor:
             x1, y1, x2, y2 = bbox
 
             if emb is None:
-                etiqueta = "SIN ROSTRO" if error_rostro is None else "ERROR ROSTRO"
+                etiqueta = "PERSONA SIN ROSTRO"
                 estado = "sin_rostro" if error_rostro is None else "error_rostro"
                 color = AMARILLO
                 cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -532,6 +534,7 @@ class Monitor:
                     nota = ("Error de reconocimiento facial: " + error_rostro
                             if error_rostro else "Persona en zona sin rostro detectable")
                     eventos_nuevos.append((None, "no_autorizado", zona, 0.0, nota, None))
+                    alertas_telegram.append("Persona sin rostro ha entrado al área restringida.")
                 continue
 
             persona_id, nombre, sim = face_mod.buscar_persona(emb, config.UMBRAL_FACIAL)
@@ -546,19 +549,30 @@ class Monitor:
                 ultimo = self._ultimo_autorizado.get(persona_id, 0.0)
                 if (ahora - ultimo) > config.COOLDOWN_AUTORIZADO_S:
                     self._ultimo_autorizado[persona_id] = ahora
-                    snapshot = self._jpeg(frame) if config.GUARDAR_SNAPSHOT_AUTORIZADO else None
+                    snapshot = None
                     eventos_nuevos.append((persona_id, "autorizado", zona, sim,
                                            "Acceso autorizado", snapshot))
+                    alertas_telegram.append(
+                        f'Persona autorizada "{nombre}", ha entrado al área.'
+                    )
                 estado = "autorizado"
             else:
                 color = ROJO
-                etiqueta = f"NO AUTORIZADO ({sim:.2f})"
+                etiqueta = "PERSONA NO AUTORIZADA"
                 alarma = True
-                # Solo se registra/avisa si la misma cara desconocida persiste
-                # N fotogramas seguidos (ver _actualizar_pista).
+                # El aviso de Telegram sale arriba en la primera detección.
+                # El evento persistido conserva la confirmación de N fotogramas
+                # para reducir falsos positivos en el historial.
                 _, parecido, sim_parecido = face_mod.mejor_coincidencia(emb)
                 pista = self._actualizar_pista(emb, bbox, ahora, frame,
                                                parecido, sim_parecido)
+                if (ahora - self._ultima_alerta_telegram) > config.COOLDOWN_ALARMA_S:
+                    self._ultima_alerta_telegram = ahora
+                    if config.ALARMA_SONORA:
+                        sonar_alarma(intervalo_min_s=config.COOLDOWN_ALARMA_S)
+                    alertas_telegram.append(
+                        "Persona desconocida ha entrado al área restringida."
+                    )
                 if pista is not None and (ahora - self._ultima_alarma) > config.COOLDOWN_ALARMA_S:
                     self._ultima_alarma = ahora
                     if pista["mejor_nombre"] and pista["mejor_sim"] >= config.UMBRAL_DUDA:
@@ -572,14 +586,6 @@ class Monitor:
                     snapshot = pista["snapshot"]
                     eventos_nuevos.append((None, "no_autorizado", zona,
                                            round(pista["mejor_sim"], 3), nota, snapshot))
-                    if config.ALARMA_SONORA:
-                        sonar_alarma()
-                    enviar_alerta(
-                        snapshot=snapshot,
-                        similitud=pista["mejor_sim"],
-                        zona=zona[1] if zona else None,
-                        nota=detalle,
-                    )
                 estado = "no_autorizado"
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -607,6 +613,27 @@ class Monitor:
             with self._frame_lock:
                 self._frame_jpeg = jpeg
                 self._frame_ts = time.time()
+
+            # La captura se toma después de dibujar todas las cajas, etiquetas
+            # y el banner de alarma, para que Telegram reciba la misma imagen
+            # anotada que ve el panel web.
+            for mensaje in alertas_telegram:
+                enviar_alerta(snapshot=jpeg, mensaje=mensaje, intervalo_min_s=0.0)
+
+            # Guarda la misma captura anotada como evidencia de los eventos
+            # que sí deben conservar snapshot en MySQL.
+            eventos_nuevos = [
+                (
+                    pid,
+                    tipo,
+                    zona,
+                    sim,
+                    nota,
+                    jpeg if tipo == "no_autorizado" or config.GUARDAR_SNAPSHOT_AUTORIZADO
+                    else snapshot,
+                )
+                for pid, tipo, zona, sim, nota, snapshot in eventos_nuevos
+            ]
 
         # ---- persistir eventos (fuera del camino crítico de video) ----
         for pid, tipo, zona, sim, nota, snapshot in eventos_nuevos:

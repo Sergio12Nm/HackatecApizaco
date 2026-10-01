@@ -1,4 +1,4 @@
-"""Alarma sonora del sistema (beeps del sistema operativo)."""
+"""Alarma sonora genérica del sistema operativo."""
 
 from __future__ import annotations
 

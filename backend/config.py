@@ -155,6 +155,9 @@ UMBRAL_DUDA = _get_float("UMBRAL_DUDA", 0.40)
 
 TELEGRAM_TOKEN = _get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT = _get("TELEGRAM_CHAT", "")
+# Intervalo mínimo entre envíos a Telegram. Las alertas que lleguen durante
+# la espera se agrupan y se conserva solo la más reciente.
+TELEGRAM_INTERVALO_S = _get_float("TELEGRAM_INTERVALO_S", 30.0)
 
 # ---------------------------------------------------------------------
 # Caché de embeddings (evita releer BLOBs en cada fotograma)
@@ -190,6 +193,7 @@ def resumen() -> dict:
         "confirmar_desconocido_n": CONFIRMAR_DESCONOCIDO_N,
         "alarma_sonora": ALARMA_SONORA,
         "telegram_configurado": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT),
+        "telegram_intervalo_s": TELEGRAM_INTERVALO_S,
         "db": {
             "host": DB_HOST,
             "puerto": DB_PORT,
