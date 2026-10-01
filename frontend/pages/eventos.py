@@ -11,7 +11,7 @@ from PIL import Image
 import cliente
 import estilo
 
-st.title("📋 Historial de eventos")
+st.title("Historial de eventos")
 st.caption("Cada acceso a una zona queda registrado en MySQL con su snapshot.")
 
 if not cliente.backend_conectado():
@@ -24,7 +24,7 @@ if not cliente.backend_conectado():
 c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
 tipo = c1.selectbox("Tipo", ["Todos", "Autorizado", "No autorizado"])
 limite = c2.slider("Eventos a mostrar", 10, 300, 50, 10)
-if c3.button("🔄 Actualizar", width="stretch"):
+if c3.button("Actualizar", width="stretch"):
     st.rerun()
 dias = c4.number_input("Purgar > (días)", 1, 3650, 90, 30, help="Elimina eventos antiguos")
 
@@ -45,12 +45,12 @@ tabla = pd.DataFrame(
         {
             "ID": e["id"],
             "Fecha y hora": estilo.formatear_ts(e["ts"]),
-            "Tipo": "✅ Autorizado" if e["tipo"] == "autorizado" else "🚨 No autorizado",
+            "Tipo": "Autorizado" if e["tipo"] == "autorizado" else "🚨 No autorizado",
             "Persona": e.get("nombre") or "Desconocido",
             "Zona": e.get("zona_nombre") or "—",
             "Similitud": round(e["similitud"], 3) if e.get("similitud") is not None else None,
             "Nota": e.get("nota") or "",
-            "Foto": "🖼" if e.get("tiene_snapshot") else "—",
+            "Foto": "" if e.get("tiene_snapshot") else "—",
         }
         for e in eventos
     ]
@@ -90,7 +90,7 @@ if seleccion:
                 st.error(str(exc))
 
 st.divider()
-if st.button("🧹 Purgar eventos antiguos", type="secondary"):
+if st.button("Purgar eventos antiguos", type="secondary"):
     try:
         resultado = cliente.purgar_eventos(int(dias))
         st.success(f"Se eliminaron {resultado['borrados']} evento(s) anteriores a {dias} días.")

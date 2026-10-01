@@ -20,11 +20,16 @@ router = APIRouter(prefix="/api", tags=["vision"])
 
 @router.get("/stream")
 def stream():
-    """Stream MJPEG con el fotograma anotado."""
+    """Stream MJPEG con el fotograma anotado (o un aviso si no hay cámara)."""
     return StreamingResponse(
         stream_frames(),
         media_type="multipart/x-mixed-replace; boundary=frame",
-        headers={"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"},
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+            # evita que proxies o navegadores acumulen los fotogramas
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -33,7 +38,12 @@ def frame():
     """Último fotograma anotado (JPEG) — lo consume el frontend Streamlit."""
     jpeg = monitor.fotograma()
     if not jpeg:
-        raise HTTPException(503, "Todavía no hay fotogramas (¿cámara conectada?)")
+        estado = monitor.estado()
+        if not estado["activo"]:
+            detalle = "El motor de visión está detenido. POST /api/monitor/start para encenderlo."
+        else:
+            detalle = f"Sin fotogramas: {estado['estado']}"
+        raise HTTPException(503, detalle)
     return Response(content=jpeg, media_type="image/jpeg",
                     headers={"Cache-Control": "no-store"})
 

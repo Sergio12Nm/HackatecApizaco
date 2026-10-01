@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse, Response
 from . import config
 from .alerts.telegram import probar as probar_telegram
 from .api import eventos as api_eventos
+from .api import camara as api_camara
 from .api import personas as api_personas
 from .api import sistema as api_sistema
 from .api import zonas as api_zonas
@@ -87,6 +88,7 @@ app.add_middleware(
 app.include_router(api_personas.router)
 app.include_router(api_zonas.router)
 app.include_router(api_eventos.router)
+app.include_router(api_camara.router)
 app.include_router(api_sistema.router)
 
 
@@ -110,6 +112,9 @@ def raiz():
                 "snapshot": "GET /api/eventos/{id}/snapshot",
                 "stream MJPEG": "GET /api/stream",
                 "frame actual": "GET /api/frame",
+                "probar fuente": "POST /api/camara/probar",
+                "cámaras locales": "GET /api/camaras",
+                "cambiar fuente": "POST /api/camara/usar",
                 "estado monitor": "GET /api/estado",
                 "configuración": "GET /api/config",
                 "diagnóstico": "GET /api/salud",

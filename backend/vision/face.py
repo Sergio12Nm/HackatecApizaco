@@ -143,6 +143,7 @@ _cache_lock = threading.Lock()
 _cache_matriz: np.ndarray | None = None
 _cache_ids: list[int] = []
 _cache_ts: float = 0.0
+_cache_log_ultimo: int = -1
 
 
 def invalidar_cache() -> None:
@@ -155,7 +156,7 @@ def invalidar_cache() -> None:
 
 def _cargar_cache(forzar: bool = False) -> np.ndarray:
     """Matriz (N, 512) con los embeddings de las personas activas."""
-    global _cache_matriz, _cache_ids, _cache_ts
+    global _cache_matriz, _cache_ids, _cache_ts, _cache_log_ultimo
 
     with _cache_lock:
         fresca = (time.time() - _cache_ts) < config.CACHE_EMBEDDINGS_S
@@ -193,7 +194,11 @@ def _cargar_cache(forzar: bool = False) -> np.ndarray:
         _cache_matriz = matriz
         _cache_ids = ids
         _cache_ts = time.time()
-        log.info("Caché de embeddings: %d vectores", matriz.shape[0])
+        # solo se avisa cuando el número de personas cambia: si no, el TTL
+        # llenaría el log cada CACHE_EMBEDDINGS_S sin decir nada nuevo
+        if matriz.shape[0] != _cache_log_ultimo:
+            _cache_log_ultimo = matriz.shape[0]
+            log.info("Caché de embeddings: %d vectores", matriz.shape[0])
         return matriz
 
 

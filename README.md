@@ -109,6 +109,9 @@ streamlit run frontend\app.py
 | Variable | Por defecto | Descripción |
 |---|---|---|
 | `CAMARA_URL` | `http://192.168.1.50:8080/video` | IP Webcam, `0` para la webcam de la PC, o ruta a un video |
+| `CAMARA_BACKEND` | `auto` | backend OpenCV para webcam local: `auto`, `dshow` o `msmf` |
+| `CAMARA_BACKEND_REINTENTOS` | `3` | fallos seguidos antes de probar con otro backend |
+| `CAMARA_CONGELADA_MAX` | `50` | fotogramas idénticos seguidos antes de reabrir la cámara |
 | `CAMARA_FPS` | `10` | fotogramas analizados por segundo |
 | `FRAME_WIDTH` / `FRAME_HEIGHT` | `640` / `480` | resolución de trabajo |
 | `YOLO_WEIGHTS` | `yolov8n.pt` | `yolov8n` rápido, `yolov8m` más preciso |
@@ -129,9 +132,26 @@ streamlit run frontend\app.py
 1. Instala **IP Webcam** (Android) y pulsa «Iniciar servidor».
 2. Anota la IP, p. ej. `http://192.168.1.50:8080`.
 3. Comprueba en el navegador del PC que `http://192.168.1.50:8080/video` muestre video.
-4. Pon `CAMARA_URL=http://192.168.1.50:8080/video` en `.env` y reinicia el backend.
+4. En el panel ve a **Ajustes → Fuente de video**, escribe la URL, pulsa
+   **Probar esta fuente** y luego **Aplicar fuente y reiniciar motor**
+   (ya no hace falta editar `.env` ni reiniciar a mano).
 
 > ¿Sin cámara? Usa `CAMARA_URL=0` (webcam del PC) o la ruta a un archivo de video.
+
+### Celular por cable USB (sin depender del WiFi)
+
+**Opción A — Por red USB (recomendada).**
+1. Conecta el celular al PC con el cable USB.
+2. En Android: Ajustes → Conexiones → *Zona WiFi y conexión* → activa
+   **Conexión USB** (tethering). El celular queda fijo en `192.168.42.129`.
+3. Inicia el servidor en IP Webcam y usa `http://192.168.42.129:8080/video`
+   como fuente. No importa que el WiFi cambie o se caiga.
+
+**Opción B — Como webcam virtual.**
+Instala **DroidCam** (o Iriun) en el celular y su programa cliente en el PC;
+el celular aparece como una cámara más (normalmente índice `1`). En
+**Ajustes → Fuente de video** usa «Detectar cámaras locales» para hallar el
+índice y aplícalo.
 
 ---
 

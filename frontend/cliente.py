@@ -67,9 +67,9 @@ def get_bytes(ruta: str, params: dict | None = None) -> bytes | None:
     return r.content
 
 
-def post_json(ruta: str, datos: dict | None = None) -> Any:
+def post_json(ruta: str, datos: dict | None = None, timeout: float = TIMEOUT) -> Any:
     try:
-        r = _session.post(_url(ruta), json=datos or {}, timeout=TIMEOUT)
+        r = _session.post(_url(ruta), json=datos or {}, timeout=timeout)
     except requests.RequestException as exc:
         raise ErrorApi(f"No se pudo conectar con el backend: {exc}") from exc
     return _manejar(r)
@@ -212,6 +212,21 @@ def borrar_evento(eid: int) -> dict:
 
 def purgar_eventos(dias: int = 90) -> dict:
     return post_json("/api/eventos/purgar", {"dias": dias})
+
+
+def probar_fuente(fuente: str) -> dict:
+    """Prueba una fuente de video (puede tardar unos segundos)."""
+    return post_json("/api/camara/probar", {"fuente": fuente}, timeout=60.0)
+
+
+def listar_camaras(maximo: int = 4) -> dict:
+    """Detecta qué índices de cámara locales entregan imagen."""
+    return get_json("/api/camaras", {"maximo": maximo})
+
+
+def cambiar_fuente(fuente: str) -> dict:
+    """Cambia la fuente activa del motor sin reiniciar el backend."""
+    return post_json("/api/camara/usar", {"fuente": fuente}, timeout=90.0)
 
 
 # ---------------------------------------------------------------------

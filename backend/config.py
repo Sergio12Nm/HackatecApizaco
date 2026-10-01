@@ -88,6 +88,21 @@ CAMARA_URL = _get("CAMARA_URL", "http://192.168.1.50:8080/video")
 CAMARA_FPS = _get_float("CAMARA_FPS", 10.0)          # fotogramas objetivo por segundo
 REINTENTO_CAMARA_S = _get_float("REINTENTO_CAMARA_S", 5.0)
 
+# En Windows el primer read() de una webcam suele fallar mientras el
+# dispositivo negocia con Media Foundation. Sin reintentos ni espera, el motor
+# abre y cierra la cámara en bucle y el dispositivo acaba bloqueándose.
+CAMARA_LECTURA_INTENTOS = _get_int("CAMARA_LECTURA_INTENTOS", 6)
+CAMARA_LECTURA_ESPERA_S = _get_float("CAMARA_LECTURA_ESPERA_S", 0.25)
+# Si la cámara devuelve este número de fotogramas idénticos seguidos, se
+# considera congelada (driver atascado) y se reabre el dispositivo.
+CAMARA_CONGELADA_MAX = _get_int("CAMARA_CONGELADA_MAX", 50)
+# auto | dshow | msmf. "auto" deja que OpenCV elija.
+CAMARA_BACKEND = _get("CAMARA_BACKEND", "auto").lower()
+# Si la webcam local abre pero no entrega imagen (o ni abre) este número de
+# veces seguidas, el motor prueba automáticamente con otro backend de captura
+# (dshow/msmf). Solo aplica a índices locales ("0", "1"...), no a URLs.
+CAMARA_BACKEND_REINTENTOS = _get_int("CAMARA_BACKEND_REINTENTOS", 3)
+
 FRAME_WIDTH = _get_int("FRAME_WIDTH", 640)
 FRAME_HEIGHT = _get_int("FRAME_HEIGHT", 480)
 CALIDAD_JPEG = _get_int("CALIDAD_JPEG", 78)
@@ -149,6 +164,9 @@ def resumen() -> dict:
     return {
         "camara_url": CAMARA_URL,
         "camara_fps": CAMARA_FPS,
+        "camara_backend": CAMARA_BACKEND,
+        "reintento_camara_s": REINTENTO_CAMARA_S,
+        "camara_congelada_max": CAMARA_CONGELADA_MAX,
         "frame_width": FRAME_WIDTH,
         "frame_height": FRAME_HEIGHT,
         "yolo_weights": Path(YOLO_WEIGHTS_RESUELTO).name,

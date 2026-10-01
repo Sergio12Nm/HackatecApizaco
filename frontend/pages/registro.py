@@ -7,7 +7,7 @@ import streamlit as st
 import cliente
 import estilo
 
-st.title("👤 Registro de personal autorizado")
+st.title("Registro de personal autorizado")
 st.caption(
     "Se extrae un embedding de 512 dimensiones de cada foto y se guarda en MySQL. "
     "No se reentrena ningún modelo: registrar = insertar un vector."
@@ -19,14 +19,14 @@ if not cliente.backend_conectado():
 
 modo = st.radio(
     "Operación",
-    ["➕ Persona nueva", "➕ Fotos adicionales (registro en caliente)"],
+    ["Persona nueva", "Fotos adicionales (registro en caliente)"],
     horizontal=True,
 )
 
 # ---------------------------------------------------------------------
 # Persona nueva
 # ---------------------------------------------------------------------
-if modo.startswith("➕ Persona"):
+if modo.startswith("Persona"):
     with st.form("form_persona", clear_on_submit=False):
         st.subheader("Datos de la persona")
         col1, col2 = st.columns(2)
@@ -56,7 +56,7 @@ if modo.startswith("➕ Persona"):
                 with columnas[i]:
                     st.image(foto, caption=foto.name, width="stretch")
 
-        enviado = st.form_submit_button("💾 Registrar persona", type="primary")
+        enviado = st.form_submit_button("Registrar persona", type="primary")
 
     if enviado:
         if not nombre.strip():
@@ -76,10 +76,10 @@ if modo.startswith("➕ Persona"):
                         telefono.strip(),
                         fotos,
                     )
-                    st.success(f"✅ {resultado['mensaje']} (ID {resultado['persona_id']})")
-                    st.balloon()
+                    st.success(f"{resultado['mensaje']} (ID {resultado['persona_id']})")
+                    st.snow()
                 except cliente.ErrorApi as exc:
-                    st.error(f"❌ {exc}")
+                    st.error(f"{exc}")
 
 # ---------------------------------------------------------------------
 # Ampliación de una persona existente
@@ -113,11 +113,11 @@ else:
         key="fotos_extra",
     )
 
-    if st.button("➕ Agregar embeddings", type="primary", disabled=not fotos):
+    if st.button("Agregar embeddings", type="primary", disabled=not fotos):
         with st.spinner("Generando embeddings..."):
             try:
                 resultado = cliente.agregar_embeddings(persona_id, fotos)
-                st.success(f"✅ {resultado['mensaje']}")
+                st.success(f"{resultado['mensaje']}")
                 st.rerun()
             except cliente.ErrorApi as exc:
-                st.error(f"❌ {exc}")
+                st.error(f"{exc}")

@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw
 import cliente
 import estilo
 
-st.title("🔲 Zonas restringidas")
+st.title("Zonas restringidas")
 st.caption(
     "Se evalúa el punto de los pies (centro inferior de la caja de la persona). "
     "Si está dentro del polígono, se intenta reconocer el rostro."
@@ -30,7 +30,7 @@ ALTO = cfg["frame_height"]
 # ---------------------------------------------------------------------
 # Imagen de referencia
 # ---------------------------------------------------------------------
-with st.expander("🖼 Imagen de referencia para dibujar", expanded=False):
+with st.expander("Imagen de referencia para dibujar", expanded=False):
     st.caption("Se usa el fotograma actual de la cámara. Si no hay cámara, sube una imagen.")
     subida = st.file_uploader("Sube una imagen de referencia", type=["jpg", "jpeg", "png"],
                               key="ref_imagen")
@@ -52,7 +52,7 @@ def cargar_en_editor(coordenadas, nombre: str = "", zona_id: int | None = None) 
     """Pide volcar un polígono en el editor de la siguiente pasada."""
     poligono = [[int(x), int(y)] for x, y in coordenadas][:12]
     st.session_state["zona_pendiente"] = {
-        "tipo": "⬟ Polígono libre",
+        "tipo": "Polígono libre",
         "n": max(3, len(poligono)),
         "df": pd.DataFrame(poligono, columns=["x", "y"]),
         "nombre": nombre,
@@ -63,7 +63,7 @@ def cargar_en_editor(coordenadas, nombre: str = "", zona_id: int | None = None) 
 # ---------------------------------------------------------------------
 # Editor de zona
 # ---------------------------------------------------------------------
-st.subheader("✏️ Definir zona")
+st.subheader("Definir zona")
 
 # Una zona puede llegar desde "Editar" o desde el pegador de JSON. Como los widgets
 # ya se crearon en esta pasada, la carga se aplaza a la siguiente con st.rerun().
@@ -78,7 +78,7 @@ if pendiente:
 
 tipo = st.radio(
     "Tipo de zona",
-    ["▭ Rectángulo", "⬟ Polígono libre"],
+    ["▭ Rectángulo", "Polígono libre"],
     horizontal=True,
     label_visibility="collapsed",
     key="tipo_zona",
@@ -148,18 +148,18 @@ nombre = col_izq.text_input("Nombre de la zona", placeholder="Ej.: Entrada princ
 camara_id = col_der.text_input("ID de cámara", value="cam0")
 
 if st.session_state.get("zona_en_edicion"):
-    st.caption(f"✏️ Editando la zona #{st.session_state['zona_en_edicion']}. "
+    st.caption(f"Editando la zona #{st.session_state['zona_en_edicion']}. "
                "Usa «Actualizar zona existente» para guardarla.")
 
-if col_izq.button("💾 Crear zona", type="primary", disabled=len(puntos) < 3):
+if col_izq.button("Crear zona", type="primary", disabled=len(puntos) < 3):
     try:
         resultado = cliente.crear_zona(nombre.strip() or "Zona sin nombre", puntos, camara_id)
-        st.success(f"✅ {resultado['mensaje']}")
+        st.success(f"{resultado['mensaje']}")
         st.rerun()
     except cliente.ErrorApi as exc:
-        st.error(f"❌ {exc}")
+        st.error(f"{exc}")
 
-with st.expander("🧩 Pegar polígono como JSON"):
+with st.expander("Pegar polígono como JSON"):
     texto = st.text_area("JSON", value=json.dumps(puntos), height=120)
     if st.button("Usar este JSON"):
         try:
@@ -175,7 +175,7 @@ with st.expander("🧩 Pegar polígono como JSON"):
 # Zonas existentes
 # ---------------------------------------------------------------------
 st.divider()
-st.subheader("📐 Zonas guardadas")
+st.subheader("Zonas guardadas")
 
 try:
     zonas = cliente.listar_zonas()
@@ -193,16 +193,16 @@ else:
             cols = st.columns([3, 3, 1, 1])
             cols[0].markdown(f"**#{z['id']} · {z['nombre']}**")
             cols[1].markdown(f"`{z['poligono']}`")
-            if cols[2].button("✏️ Editar", key=f"edit_{z['id']}", width="stretch"):
+            if cols[2].button("Editar", key=f"edit_{z['id']}", width="stretch"):
                 cargar_en_editor(z["poligono"], z["nombre"], z["id"])
                 st.rerun()
-            if cols[3].button("🗑", key=f"del_{z['id']}", width="stretch"):
+            if cols[3].button("", key=f"del_{z['id']}", width="stretch"):
                 try:
                     cliente.eliminar_zona(z["id"])
                     st.session_state.pop("zona_en_edicion", None)
                     st.rerun()
                 except cliente.ErrorApi as exc:
-                    st.error(f"❌ {exc}")
+                    st.error(f"{exc}")
 
     with st.expander("Actualizar zona existente"):
         zid = st.selectbox("Zona", [z["id"] for z in zonas],
@@ -213,7 +213,7 @@ else:
             "Polígono (JSON)",
             value=json.dumps(next(z["poligono"] for z in zonas if z["id"] == zid)),
         )
-        if st.button("💾 Actualizar zona"):
+        if st.button("Actualizar zona"):
             try:
                 datos = json.loads(json_edit)
                 if not isinstance(datos, list) or len(datos) < 3:
@@ -222,4 +222,4 @@ else:
                 st.success("Zona actualizada.")
                 st.rerun()
             except Exception as exc:
-                st.error(f"❌ {exc}")
+                st.error(f"{exc}")

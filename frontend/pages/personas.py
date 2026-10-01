@@ -11,7 +11,7 @@ from PIL import Image
 import cliente
 import estilo
 
-st.title("🗂️ Personal autorizado")
+st.title("Personal autorizado")
 st.caption("Personas cuyos embeddings están en MySQL y por tanto se consideran autorizadas.")
 
 if not cliente.backend_conectado():
@@ -70,7 +70,7 @@ with col_datos:
     st.markdown(f"**Estado actual:** {'Activo' if persona['activo'] else 'Inactivo'}")
 
     c1, c2 = st.columns(2)
-    if c1.button("🔄 Alternar activo/inactivo", width="stretch"):
+    if c1.button("Alternar activo/inactivo", width="stretch"):
         try:
             cliente.cambiar_activo(persona_id, not persona["activo"])
             st.rerun()

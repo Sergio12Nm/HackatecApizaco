@@ -53,3 +53,5 @@ class EstadoMonitor(BaseModel):
     fotograma_ts: float | None = None
     detecciones: list[dict] = []
     umbral: float = 0.0
+    embeddings: int = 0
+    backend_camara: str | None = None
