@@ -122,6 +122,8 @@ streamlit run frontend\app.py
 | `DETECTAR_SIN_ZONAS` | `1` | sin zonas definidas, evalúa toda la imagen |
 | `COOLDOWN_AUTORIZADO_S` | `30` | evita repetir el mismo acceso cada fotograma |
 | `COOLDOWN_ALARMA_S` | `15` | evita disparar la alarma sin parar |
+| `CONFIRMAR_DESCONOCIDO_N` | `6` | fotogramas seguidos con la misma cara desconocida antes de avisar a Telegram |
+| `UMBRAL_DUDA` | `0.40` | desde esta similitud el aviso dice a quién se parece |
 | `ALERMA_SONORA` | `1` | beep del sistema operativo |
 | `ALERTA_SIN_ROSTRO` | `1` | alerta si hay persona en zona sin rostro visible |
 | `TELEGRAM_TOKEN` / `TELEGRAM_CHAT` | vacíos | aviso opcional a seguridad |
@@ -166,6 +168,10 @@ el celular aparece como una cámara más (normalmente índice `1`). En
 5. Se compara con la matriz de embeddings guardados en MySQL (cargada en caché):
    - `similitud >= UMBRAL_FACIAL` → **autorizado** (caja verde + nombre)
    - `similitud <  UMBRAL_FACIAL` → **no autorizado** (caja roja + alarma)
+6. Un desconocido solo genera evento y aviso a Telegram si la **misma cara
+   persiste `CONFIRMAR_DESCONOCIDO_N` fotogramas seguidos**: así un autorizado
+   no dispara alertas por un parpadeo de la similitud. Si se parece a alguien
+   (`>= UMBRAL_DUDA`), el aviso dice a quién.
 6. Los eventos se guardan en `eventos` con el snapshot JPEG del momento.
 7. El frontend consume `/api/frame` (o `/api/stream` para MJPEG).
 

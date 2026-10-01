@@ -142,6 +142,16 @@ COOLDOWN_AUTORIZADO_S = _get_float("COOLDOWN_AUTORIZADO_S", 30.0)
 COOLDOWN_ALARMA_S = _get_float("COOLDOWN_ALARMA_S", 15.0)
 ALARMA_SONORA = _get_bool("ALARMA_SONORA", True)
 GUARDAR_SNAPSHOT_AUTORIZADO = _get_bool("GUARDAR_SNAPSHOT_AUTORIZADO", False)
+# Un rostro bajo el umbral solo genera evento/aviso si persiste N fotogramas
+# seguidos (misma cara). Evita que una persona registrada dispare Telegram
+# por un parpadeo de la similitud entre fotogramas.
+CONFIRMAR_DESCONOCIDO_N = _get_int("CONFIRMAR_DESCONOCIDO_N", 6)
+# Similitud mínima entre fotogramas para considerar que es la misma cara.
+CONFIRMAR_DESCONOCIDO_SIM = _get_float("CONFIRMAR_DESCONOCIDO_SIM", 0.60)
+# Segundos sin verse para olvidar una pista de desconocido.
+PISTA_EXPIRA_S = _get_float("PISTA_EXPIRA_S", 2.0)
+# A partir de esta similitud el aviso dice a quién se parece ("parecido a...").
+UMBRAL_DUDA = _get_float("UMBRAL_DUDA", 0.40)
 
 TELEGRAM_TOKEN = _get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT = _get("TELEGRAM_CHAT", "")
@@ -177,6 +187,7 @@ def resumen() -> dict:
         "alerta_sin_rostro": ALERTA_SIN_ROSTRO,
         "cooldown_autorizado_s": COOLDOWN_AUTORIZADO_S,
         "cooldown_alarma_s": COOLDOWN_ALARMA_S,
+        "confirmar_desconocido_n": CONFIRMAR_DESCONOCIDO_N,
         "alarma_sonora": ALARMA_SONORA,
         "telegram_configurado": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT),
         "db": {

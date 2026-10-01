@@ -206,12 +206,11 @@ def numero_embeddings() -> int:
     return _cargar_cache().shape[0]
 
 
-def buscar_persona(emb: np.ndarray, umbral: float | None = None, forzar: bool = False):
+def mejor_coincidencia(emb: np.ndarray, forzar: bool = False):
     """
-    Compara el embedding contra todos los vectors activos.
-    Devuelve (persona_id, nombre, similitud) — persona_id=None si no supera el umbral.
+    (persona_id, nombre, similitud) del registrado más parecido, SIN umbral.
+    Sirve para mensajes del tipo "parecido a Juan (0.47)" cuando no se autoriza.
     """
-    umbral = config.UMBRAL_FACIAL if umbral is None else umbral
     matriz = _cargar_cache(forzar=forzar)
     if matriz.shape[0] == 0 or emb is None:
         return None, None, 0.0
@@ -225,10 +224,24 @@ def buscar_persona(emb: np.ndarray, umbral: float | None = None, forzar: bool = 
     idx = int(np.argmax(similitudes))
     mejor = float(similitudes[idx])
 
-    if mejor < umbral:
+    pid = _cache_ids[idx]
+    with session_scope() as db:
+        persona = db.get(Persona, pid)
+        if persona is None:
+            return None, None, mejor
+        return persona.id, persona.nombre, mejor
+
+
+def buscar_persona(emb: np.ndarray, umbral: float | None = None, forzar: bool = False):
+    """
+    Compara el embedding contra todos los vectors activos.
+    Devuelve (persona_id, nombre, similitud) — persona_id=None si no supera el umbral.
+    """
+    umbral = config.UMBRAL_FACIAL if umbral is None else umbral
+    persona_id, nombre, mejor = mejor_coincidencia(emb, forzar=forzar)
+    if persona_id is None or mejor < umbral:
         return None, None, mejor
 
-    persona_id = _cache_ids[idx]
     with session_scope() as db:
         persona = db.get(Persona, persona_id)
         if persona is None or not persona.activo:

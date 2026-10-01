@@ -66,6 +66,8 @@ class Monitor:
         self._ultimo_error_rostro = 0.0
         self._ultimo_hash: int | None = None
         self._repetidos = 0
+        # pistas de caras desconocidas pendientes de confirmar
+        self._pistas: list[dict] = []
         # backends de captura a probar, en orden (solo webcam local)
         self._flags_local = self._orden_flags()
         self._flag_idx = 0
@@ -100,6 +102,7 @@ class Monitor:
         with self._frame_lock:
             self._frame_jpeg = None
             self._frame_ts = 0.0
+        self._pistas = []
 
     @property
     def vivo(self) -> bool:
@@ -399,6 +402,60 @@ class Monitor:
         self._set_estado("detenido")
 
     # ---------------------------------------------------------------
+    # Pistas de desconocidos (confirmación temporal antes de alertar)
+    # ---------------------------------------------------------------
+    @staticmethod
+    def _centro(bbox) -> tuple[float, float]:
+        return ((bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0)
+
+    @staticmethod
+    def _cerca(bbox, centro, max_px: float = 160.0) -> bool:
+        cx, cy = Monitor._centro(bbox)
+        return abs(cx - centro[0]) + abs(cy - centro[1]) <= max_px
+
+    def _limpiar_pistas(self, bbox) -> None:
+        """Esa cara quedó reconocida: borra la sospecha sobre ella."""
+        self._pistas = [p for p in self._pistas if not self._cerca(bbox, p["centro"])]
+
+    def _actualizar_pista(self, emb: np.ndarray, bbox, ahora: float,
+                          frame: np.ndarray, parecido, sim_parecido) -> dict | None:
+        """
+        Sigue a una cara desconocida entre fotogramas. Devuelve la pista solo
+        cuando se confirma (N seguidos sin reconocerse) y aún no se alertó;
+        si no, devuelve None.
+        """
+        self._pistas = [p for p in self._pistas
+                        if ahora - p["ultima"] <= config.PISTA_EXPIRA_S]
+        mejor_p, mejor_s = None, 0.0
+        for p in self._pistas:
+            if not self._cerca(bbox, p["centro"]):
+                continue
+            s = float(np.dot(p["emb"], emb))  # ambos normalizados = coseno
+            if s > mejor_s:
+                mejor_s, mejor_p = s, p
+        if mejor_p is not None and mejor_s >= config.CONFIRMAR_DESCONOCIDO_SIM:
+            mejor_p["emb"] = emb
+            mejor_p["bbox"] = list(bbox)
+            mejor_p["centro"] = self._centro(bbox)
+            mejor_p["n"] += 1
+            mejor_p["ultima"] = ahora
+            if sim_parecido > mejor_p["mejor_sim"]:
+                mejor_p["mejor_sim"] = sim_parecido
+                mejor_p["mejor_nombre"] = parecido
+                mejor_p["snapshot"] = self._jpeg(frame)
+            pista = mejor_p
+        else:
+            pista = {"emb": emb, "bbox": list(bbox), "centro": self._centro(bbox),
+                     "n": 1, "ultima": ahora, "alertado": False,
+                     "mejor_sim": sim_parecido, "mejor_nombre": parecido,
+                     "snapshot": self._jpeg(frame)}
+            self._pistas.append(pista)
+        if pista["n"] >= config.CONFIRMAR_DESCONOCIDO_N and not pista["alertado"]:
+            pista["alertado"] = True
+            return pista
+        return None
+
+    # ---------------------------------------------------------------
     # Análisis de un fotograma
     # ---------------------------------------------------------------
     def _procesar(self, frame: np.ndarray) -> None:
@@ -470,6 +527,10 @@ class Monitor:
             if persona_id is not None:
                 color = VERDE
                 etiqueta = f"{nombre} ({sim:.2f})"
+                # Esa cara ya quedó reconocida: borra la sospecha que hubiera
+                # sobre ella (evita que un parpadeo de la similitud dispare
+                # Telegram para una persona autorizada).
+                self._limpiar_pistas(bbox)
                 ultimo = self._ultimo_autorizado.get(persona_id, 0.0)
                 if (ahora - ultimo) > config.COOLDOWN_AUTORIZADO_S:
                     self._ultimo_autorizado[persona_id] = ahora
@@ -481,18 +542,31 @@ class Monitor:
                 color = ROJO
                 etiqueta = f"NO AUTORIZADO ({sim:.2f})"
                 alarma = True
-                if (ahora - self._ultima_alarma) > config.COOLDOWN_ALARMA_S:
+                # Solo se registra/avisa si la misma cara desconocida persiste
+                # N fotogramas seguidos (ver _actualizar_pista).
+                _, parecido, sim_parecido = face_mod.mejor_coincidencia(emb)
+                pista = self._actualizar_pista(emb, bbox, ahora, frame,
+                                               parecido, sim_parecido)
+                if pista is not None and (ahora - self._ultima_alarma) > config.COOLDOWN_ALARMA_S:
                     self._ultima_alarma = ahora
-                    snapshot = self._jpeg(frame)
-                    eventos_nuevos.append((None, "no_autorizado", zona, sim,
-                                           "Rostro desconocido en zona restringida", snapshot))
+                    if pista["mejor_nombre"] and pista["mejor_sim"] >= config.UMBRAL_DUDA:
+                        detalle = (f"parecido a {pista['mejor_nombre']} "
+                                   f"({pista['mejor_sim']:.2f})")
+                        nota = ("Rostro desconocido en zona restringida "
+                                f"({detalle})")
+                    else:
+                        detalle = f"bbox={list(bbox)}"
+                        nota = "Rostro desconocido en zona restringida"
+                    snapshot = pista["snapshot"]
+                    eventos_nuevos.append((None, "no_autorizado", zona,
+                                           round(pista["mejor_sim"], 3), nota, snapshot))
                     if config.ALARMA_SONORA:
                         sonar_alarma()
                     enviar_alerta(
                         snapshot=snapshot,
-                        similitud=sim,
+                        similitud=pista["mejor_sim"],
                         zona=zona[1] if zona else None,
-                        nota=f"bbox={list(bbox)}",
+                        nota=detalle,
                     )
                 estado = "no_autorizado"
 
